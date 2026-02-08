@@ -158,7 +158,7 @@ output/{dataset_name}/train-test-splits/
 **Command:**
 
 ```bash
-python generate_stats.py --config datasets/pamp2_config.yaml
+python generate_stats.py --config datasets/pamap2_config.yaml
 ```
 
 **Parameters:**
@@ -224,7 +224,7 @@ python timeseries_indexing.py --config datasets/pamap2_config.yaml
 
 **Auto-generated paths:**
 
-- Input: `output/{dataset_name}/features/descriptions/`
+- Input: `output/{dataset_name}/features/train/descriptions/`
 - Collection name: `{dataset_name}_collection`
 
 **Outputs:**
@@ -261,7 +261,7 @@ python classifier.py --config datasets/pamap2_config.yaml
 
 **Auto-generated paths:**
 
-- Test descriptions: `output/{dataset_name}/features/descriptions/`
+- Test descriptions: `output/{dataset_name}/features/test/descriptions`
 - Collection name: `{dataset_name}_collection`
 - Output directory: `output/{dataset_name}/evaluation/`
 
@@ -293,16 +293,16 @@ export ZILLIZ_CLOUD_URI="your-milvus-uri"
 export ZILLIZ_CLOUD_API_KEY="your-milvus-api-key"
 
 # Step 1: Preprocessing (dataset-specific)
-python preprocessing_new.py --config datasets/pamp2_config.yaml
+python preprocessing_new.py --config datasets/pamap2_config.yaml
 
 # Step 2: Feature Extraction (temporal segmentation always enabled)
-python generate_stats.py --config datasets/pamp2_config.yaml
+python generate_stats.py --config datasets/pamap2_config.yaml
 
 # Step 3: Vector Indexing (creates 4 indexes: whole, start, mid, end)
-python timeseries_indexing_new.py --config datasets/pamp2_config.yaml
+python timeseries_indexing_new.py --config datasets/pamap2_config.yaml
 
 # Step 4: Classification & Evaluation (hybrid search + LLM)
-python classifier_new.py --config datasets/pamp2_config.yaml
+python classifier_new.py --config datasets/pamap2_config.yaml
 ```
 
 **That's it!** All paths are automatically determined from the dataset name in the config file.
