@@ -1,77 +1,77 @@
-# RAG-HAR Pipeline
+# RAG-HAR パイプライン
 
-A dataset-agnostic Retrieval-Augmented Generation pipeline for Human Activity Recognition.
-
----
-
-## Prerequisites
-
-### 1. OpenAI API Key
-
-The pipeline uses OpenAI for embeddings and LLM-based classification.
-
-**Get your API key:**
-
-1. Sign up at [OpenAI Platform](https://platform.openai.com/)
-2. Navigate to [API Keys](https://platform.openai.com/api-keys)
-3. Create a new secret key
-
-### 2. Milvus Vector Database (Zilliz Cloud)
-
-The pipeline uses Milvus for vector storage and similarity search.
-
-**Get free cloud instance:**
-
-1. Sign up at [Zilliz Cloud](https://cloud.zilliz.com/signup)
-2. Create a new cluster (free tier available)
-3. Get credentials from cluster details page
+ヒト行動認識（HAR）のためのデータセットに依存しない検索拡張生成（RAG）パイプライン。
 
 ---
 
-## Supported Datasets
+## 前提条件
 
-RAG-HAR is implemented for the following publicly available HAR datasets:
+### 1. OpenAI APIキー
 
-| Dataset     | # Activities / Gestures | Sensors                                                  | Download                                                                                                 |
-| ----------- | ----------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **PAMAP2**  | 12 activities           | 3 IMUs placed on hand, chest, and ankle                  | [UCI Repository](https://archive.ics.uci.edu/dataset/231/pamap2+physical+activity+monitoring)            |
-| **MHEALTH** | 12 activities           | 3 IMUs placed on arm, ankle, and chest                   | [UCI Repository](https://archive.ics.uci.edu/dataset/319/mhealth+dataset)                                |
-| **USC-HAD** | 12 activities           | Accelerometer and gyroscope                              | [USC](https://sipi.usc.edu/had/)                                                                         |
-| **HHAR**    | 6 activities            | Accelerometer and gyroscope (smartphones & smartwatches) | [UCI Repository](https://archive.ics.uci.edu/dataset/344/heterogeneity+activity+recognition)             |
-| **GOTOV**   | 16 activities           | 3 accelerometers placed on hand, chest, and ankle        | [4TUResearch Data](https://data.4tu.nl/datasets/f9bae0cd-ec4e-4cfb-aaa5-41bd1c5554ce/1)                  |
-| **Skoda**   | 10 gestures             | 20 accelerometers attached to worker’s arms              | [Data Repository](https://drive.google.com/file/d/15Q8oV02h2_e94IWJ9rnKLrSCKPCTW5FS/view?usp=drive_link) |
+このパイプラインは、埋め込みとLLMベースの分類のためにOpenAIを使用します。
 
-**Note:** Download the datasets and update the `data_source` paths in the corresponding config files (`datasets/*.yaml`).
+**APIキーの取得方法:**
+
+1. [OpenAI Platform](https://platform.openai.com/) にサインアップ
+2. [API Keys](https://platform.openai.com/api-keys) に移動
+3. 新しいシークレットキーを作成
+
+### 2. Milvusベクトルデータベース（Zilliz Cloud）
+
+このパイプラインは、ベクトルストレージと類似性検索のためにMilvusを使用します。
+
+**無料クラウドインスタンスの取得方法:**
+
+1. [Zilliz Cloud](https://cloud.zilliz.com/signup) にサインアップ
+2. 新しいクラスタを作成（無料枠あり）
+3. クラスタ詳細ページから認証情報を取得
 
 ---
 
-## Overview
+## 対応データセット
 
-This pipeline processes sensor data through four stages to enable RAG-based activity classification:
+RAG-HARは、以下の公開HARデータセット向けに実装されています：
+
+| データセット  | アクティビティ/ジェスチャー数 | センサー                                                  | ダウンロード                                                                                                 |
+| ------------ | ---------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **PAMAP2**   | 12アクティビティ            | 手、胸、足首に配置された3つのIMU                         | [UCI Repository](https://archive.ics.uci.edu/dataset/231/pamap2+physical+activity+monitoring)              |
+| **MHEALTH**  | 12アクティビティ            | 腕、足首、胸に配置された3つのIMU                         | [UCI Repository](https://archive.ics.uci.edu/dataset/319/mhealth+dataset)                                  |
+| **USC-HAD**  | 12アクティビティ            | 加速度計とジャイロスコープ                               | [USC](https://sipi.usc.edu/had/)                                                                           |
+| **HHAR**     | 6アクティビティ             | 加速度計とジャイロスコープ（スマートフォン・スマートウォッチ） | [UCI Repository](https://archive.ics.uci.edu/dataset/344/heterogeneity+activity+recognition)              |
+| **GOTOV**    | 16アクティビティ            | 手、胸、足首に配置された3つの加速度計                    | [4TUResearch Data](https://data.4tu.nl/datasets/f9bae0cd-ec4e-4cfb-aaa5-41bd1c5554ce/1)                    |
+| **Skoda**    | 10ジェスチャー              | 作業員の腕に取り付けられた20個の加速度計                 | [Data Repository](https://drive.google.com/file/d/15Q8oV02h2_e94IWJ9rnKLrSCKPCTW5FS/view?usp=drive_link) |
+
+**注意:** データセットをダウンロードし、対応する設定ファイル（`datasets/*.yaml`）の`data_source`パスを更新してください。
+
+---
+
+## 概要
+
+このパイプラインは、センサーデータを4つのステージで処理し、RAGベースのアクティビティ分類を実現します：
 
 ```
-Raw Sensor Data (CSV)
+生のセンサーデータ（CSV）
     ↓
-[Stage 1] Preprocessing → CSV Windows
+[ステージ1] 前処理 → CSVウィンドウ
     ↓
-[Stage 2] Feature Extraction → descriptions/
+[ステージ2] 特徴抽出 → descriptions/
     ↓
-[Stage 3] Vector Indexing → Vector Database
+[ステージ3] ベクトルインデックス作成 → ベクトルデータベース
     ↓
-[Stage 4] Classification → Predictions + Evaluation
+[ステージ4] 分類 → 予測 + 評価
 ```
 
-## Quick Start
+## クイックスタート
 
-**Note:** The following instructions use PAMAP2 as an example. For other datasets, simply change the config file path (e.g., `--config datasets/mhealth_config.yaml`).
+**注意:** 以下の手順ではPAMAP2を例として使用します。他のデータセットの場合は、設定ファイルのパスを変更してください（例：`--config datasets/mhealth_config.yaml`）。
 
-### 1. Install Dependencies
+### 1. 依存関係のインストール
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Set Environment Variables
+### 2. 環境変数の設定
 
 ```bash
 export OPENAI_API_KEY="sk-your-key-here"
@@ -79,45 +79,45 @@ export ZILLIZ_CLOUD_URI="https://your-cluster.api.gcp-us-west1.zillizcloud.com"
 export ZILLIZ_CLOUD_API_KEY="your-token-here"
 ```
 
-### 3. Download Dataset
+### 3. データセットのダウンロード
 
-Download PAMAP2 from [UCI Repository](https://archive.ics.uci.edu/dataset/231/pamap2+physical+activity+monitoring) and update the data path in `datasets/pamap2_config.yaml`.
+[UCI Repository](https://archive.ics.uci.edu/dataset/231/pamap2+physical+activity+monitoring)からPAMAP2をダウンロードし、`datasets/pamap2_config.yaml`のデータパスを更新してください。
 
-### 4. Run Pipeline Stages
+### 4. パイプラインステージの実行
 
-Each stage is run independently using its own script.
+各ステージは独自のスクリプトを使用して独立して実行されます。
 
 ---
 
-## Stage 1: Preprocessing
+## ステージ1: 前処理
 
-**Purpose:** Dataset-specific preprocessing - each dataset implements its own logic.
+**目的:** データセット固有の前処理 - 各データセットが独自のロジックを実装します。
 
-**Script:** `preprocessing.py` (wrapper that calls provider's preprocess())
+**スクリプト:** `preprocessing.py`（プロバイダーのpreprocess()を呼び出すラッパー）
 
-**Command:**
+**コマンド:**
 
 ```bash
 python preprocessing.py --config datasets/pamap2_config.yaml
 ```
 
-**Parameters:**
+**パラメータ:**
 
-- `--config`: Path to dataset configuration YAML file
+- `--config`: データセット設定YAMLファイルのパス
 
-**Auto-generated paths:**
+**自動生成されるパス:**
 
-- Output directory: `output/{dataset_name}/windows/`
+- 出力ディレクトリ: `output/{dataset_name}/windows/`
 
-**How it works:**
+**動作仕組み:**
 
-- The script calls `provider.preprocess(output_dir)`
-- Each dataset provider implements its own `preprocess()` method
-- Providers can use the `Preprocessor` utility class or implement completely custom logic
+- スクリプトは`provider.preprocess(output_dir)`を呼び出します
+- 各データセットプロバイダーは独自の`preprocess()`メソッドを実装します
+- プロバイダーは`Preprocessor`ユーティリティクラスを使用するか、完全にカスタムロジックを実装できます
 
-**Outputs:**
+**出力:**
 
-All datasets follow this **standardized structure**:
+すべてのデータセットはこの**標準化された構造**に従います：
 
 ```
 output/{dataset_name}/train-test-splits/
@@ -134,45 +134,45 @@ output/{dataset_name}/train-test-splits/
     └── ...
 ```
 
-**File naming convention:**
+**ファイル命名規則:**
 
-- Pattern: `subject{idx}_window{idx}_activity{idx}_{activity_label}.csv`
-- Example: `subject101_window0000_activity1_walking.csv`
+- パターン: `subject{idx}_window{idx}_activity{idx}_{activity_label}.csv`
+- 例: `subject101_window0000_activity1_walking.csv`
 
-**What it does:**
+**処理内容:**
 
-1. Loads raw CSV files via DatasetProvider
-2. Applies dataset-specific preprocessing (normalization, filtering, etc.)
-3. Segments into overlapping windows (e.g., 200 samples with 50% overlap)
-4. Splits into train/test sets
-5. Organizes windows into activity-based folders following the standardized structure
+1. DatasetProvider経由で生のCSVファイルを読み込み
+2. データセット固有の前処理を適用（正規化、フィルタリングなど）
+3. 重複するウィンドウに分割（例：200サンプル、50%オーバーラップ）
+4. 訓練/テストセットに分割
+5. 標準化された構造に従ってアクティビティベースのフォルダにウィンドウを整理
 
 ---
 
-## Stage 2: Feature Extraction
+## ステージ2: 特徴抽出
 
-**Purpose:** Calculate statistical features for each window and generate human-readable descriptions.
+**目的:** 各ウィンドウの統計的特徴を計算し、人間が読める説明を生成します。
 
-**Script:** `generate_stats.py`
+**スクリプト:** `generate_stats.py`
 
-**Command:**
+**コマンド:**
 
 ```bash
 python generate_stats.py --config datasets/pamap2_config.yaml
 ```
 
-**Parameters:**
+**パラメータ:**
 
-- `--config`: Path to dataset configuration YAML file
+- `--config`: データセット設定YAMLファイルのパス
 
-**Auto-generated paths:**
+**自動生成されるパス:**
 
-- Train Input: `output/{dataset_name}/train-test-splits/train/`
-- Test Input: `output/{dataset_name}/train-test-splits/test/`
-- Train Output: `output/{dataset_name}/features/train/`
-- Test Output: `output/{dataset_name}/features/test/`
+- 訓練用入力: `output/{dataset_name}/train-test-splits/train/`
+- テスト用入力: `output/{dataset_name}/train-test-splits/test/`
+- 訓練用出力: `output/{dataset_name}/features/train/`
+- テスト用出力: `output/{dataset_name}/features/test/`
 
-**Outputs:**
+**出力:**
 
 ```
 output/{dataset_name}/features/
@@ -186,168 +186,168 @@ output/{dataset_name}/features/
         └── ...
 ```
 
-**Feature file naming:**
+**特徴ファイル命名:**
 
-- Pattern: `window_{idx}_activity_{activity_label}_stats.txt`
-- Example: `window_0_activity_walking_stats.txt`
+- パターン: `window_{idx}_activity_{activity_label}_stats.txt`
+- 例: `window_0_activity_walking_stats.txt`
 
-**What it does:**
+**処理内容:**
 
-1. For each window CSV, calculates statistical features (mean, std, min, max, median, etc.)
-2. Computes features per sensor axis (x, y, z)
-3. Segments window into temporal parts (whole, start, mid, end) for richer features
-4. Generates human-readable text descriptions of the features
+1. 各ウィンドウCSVについて、統計的特徴を計算（平均、標準偏差、最小値、最大値、中央値など）
+2. 各センサー軸（x、y、z）ごとに特徴を計算
+3. より豊かな特徴のためにウィンドウを時間的パート（全体、開始、中間、終了）に分割
+4. 特徴の人間が読めるテキスト説明を生成
 
-**Dataset-Specific Feature Extraction:**
-Each dataset specific implementation knows how to extract features from its own column structure:
+**データセット固有の特徴抽出:**
+各データセット固有の実装は、独自の列構造から特徴を抽出する方法を知っています：
 
-- **HAR Demo**: Handled by `providers/har_demo/features.py` (extracts from `accel_x`, `gyro_y`, `mag_z`)
-- **Your dataset**: Create `providers/your_dataset/features.py` with your column names
+- **HAR Demo**: `providers/har_demo/features.py`で処理（`accel_x`、`gyro_y`、`mag_z`から抽出）
+- **あなたのデータセット**: 列名を指定して`providers/your_dataset/features.py`を作成
 
 ---
 
-## Stage 3: Vector Database Indexing
+## ステージ3: ベクトルデータベースインデックス作成
 
-**Purpose:** Create embeddings from feature descriptions and index them into a vector database.
+**目的:** 特徴説明から埋め込みを作成し、ベクトルデータベースにインデックスを作成します。
 
-**Script:** `timeseries_indexing.py`
+**スクリプト:** `timeseries_indexing.py`
 
-**Command:**
+**コマンド:**
 
 ```bash
 python timeseries_indexing.py --config datasets/pamap2_config.yaml
 ```
 
-**Parameters:**
+**パラメータ:**
 
-- `--config`: Path to dataset configuration YAML file
+- `--config`: データセット設定YAMLファイルのパス
 
-**Auto-generated paths:**
+**自動生成されるパス:**
 
-- Input: `output/{dataset_name}/features/train/descriptions/`
-- Collection name: `{dataset_name}_collection`
+- 入力: `output/{dataset_name}/features/train/descriptions/`
+- コレクション名: `{dataset_name}_collection`
 
-**Outputs:**
+**出力:**
 
-- **Milvus:** Cloud storage
+- **Milvus:** クラウドストレージ
 
-**What it does:**
+**処理内容:**
 
-1. Reads all window description text files
-2. Generates embeddings for each description
-3. Indexes embeddings into vector database with metadata (activity, window_id)
-4. Creates similarity search index
+1. すべてのウィンドウ説明テキストファイルを読み込み
+2. 各説明の埋め込みを生成
+3. メタデータ（アクティビティ、window_id）付きでベクトルデータベースに埋め込みをインデックス化
+4. 類似性検索インデックスを作成
 
 ---
 
-## Stage 4: Classification & Evaluation
+## ステージ4: 分類と評価
 
-**Purpose:** RAG-based activity classification using hybrid search with temporal segmentation and LLM reasoning.
+**目的:** 時間的セグメンテーションとLLM推論を用いたハイブリッド検索によるRAGベースのアクティビティ分類。
 
-**Script:** `classifier.py`
+**スクリプト:** `classifier.py`
 
-**Command:**
+**コマンド:**
 
 ```bash
 python classifier.py --config datasets/pamap2_config.yaml
 ```
 
-**Parameters:**
+**パラメータ:**
 
-- `--config`: Path to dataset configuration YAML file (required)
-- `--model`: [Optional] LLM model for classification (default: `gpt-5-mini`)
-- `--fewshot`: [Optional] Number of samples to retrieve per temporal segment
-- `--out-fewshot`: [Optional] Final number of samples after hybrid reranking
+- `--config`: データセット設定YAMLファイルのパス（必須）
+- `--model`: [オプション] 分類用LLMモデル（デフォルト: `gpt-5-mini`）
+- `--fewshot`: [オプション] 時間的セグメントごとに取得するサンプル数
+- `--out-fewshot`: [オプション] ハイブリッド再ランク後の最終サンプル数
 
-**Auto-generated paths:**
+**自動生成されるパス:**
 
-- Test descriptions: `output/{dataset_name}/features/test/descriptions`
-- Collection name: `{dataset_name}_collection`
-- Output directory: `output/{dataset_name}/evaluation/`
+- テスト説明: `output/{dataset_name}/features/test/descriptions`
+- コレクション名: `{dataset_name}_collection`
+- 出力ディレクトリ: `output/{dataset_name}/evaluation/`
 
-**Outputs:**
+**出力:**
 
-- `output/{dataset_name}/evaluation/predictions.csv` - Labels and predictions with Full results
-- Console output with accuracy, F1 score, and RAG hit rate
+- `output/{dataset_name}/evaluation/predictions.csv` - ラベルと予測（完全な結果付き）
+- 精度、F1スコア、RAGヒット率を含むコンソール出力
 
-**What it does:**
+**処理内容:**
 
-1. For each test window:
-   - Extracts temporal segments (whole, start, mid, end)
-   - Generates embeddings for each segment
-   - Performs hybrid search in Milvus with multiple ANN requests
-   - Retrieves top-k similar samples using weighted ranker
-   - Uses LLM to classify based on semantic similarity to retrieved samples
-   - Tracks RAG quality (whether true label appears in retrieved samples)
-2. Calculates evaluation metrics (accuracy, F1 score, RAG hit rate)
-3. Saves detailed results
+1. 各テストウィンドウについて：
+   - 時間的セグメントを抽出（全体、開始、中間、終了）
+   - 各セグメントの埋め込みを生成
+   - 複数のANNリクエストでMilvus内でハイブリッド検索を実行
+   - 重み付けランカーを使用してトップkの類似サンプルを取得
+   - 取得したサンプルとのセマンティック類似性に基づいて分類するためにLLMを使用
+   - RAG品質を追跡（取得したサンプルに正しいラベルが含まれるかどうか）
+2. 評価指標を計算（精度、F1スコア、RAGヒット率）
+3. 詳細な結果を保存
 
 ---
 
-## Complete Example Workflow
+## 完全なワークフロー例
 
 ```bash
-# Set required environment variables
+# 必要な環境変数を設定
 export OPENAI_API_KEY="your-api-key-here"
 export ZILLIZ_CLOUD_URI="your-milvus-uri"
 export ZILLIZ_CLOUD_API_KEY="your-milvus-api-key"
 
-# Step 1: Preprocessing (dataset-specific)
+# ステップ1: 前処理（データセット固有）
 python preprocessing_new.py --config datasets/pamap2_config.yaml
 
-# Step 2: Feature Extraction (temporal segmentation always enabled)
+# ステップ2: 特徴抽出（時間的セグメンテーションは常に有効）
 python generate_stats.py --config datasets/pamap2_config.yaml
 
-# Step 3: Vector Indexing (creates 4 indexes: whole, start, mid, end)
+# ステップ3: ベクトルインデックス作成（4つのインデックスを作成：全体、開始、中間、終了）
 python timeseries_indexing_new.py --config datasets/pamap2_config.yaml
 
-# Step 4: Classification & Evaluation (hybrid search + LLM)
+# ステップ4: 分類と評価（ハイブリッド検索 + LLM）
 python classifier_new.py --config datasets/pamap2_config.yaml
 ```
 
-**That's it!** All paths are automatically determined from the dataset name in the config file.
+**以上です！** すべてのパスは設定ファイルのデータセット名から自動的に決定されます。
 
 ---
 
-## Customizing Classification Prompts
+## 分類プロンプトのカスタマイズ
 
-The system prompts used for LLM classification can be customized per dataset in the configuration file. This allows you to tailor the classification instructions based on dataset-specific characteristics.
+LLM分類に使用されるシステムプロンプトは、設定ファイルでデータセットごとにカスタマイズできます。これにより、データセット固有の特性に基づいて分類指示を調整できます。
 
-### Configuration
+### 設定
 
-Add a `prompts` section to your dataset config file:
+データセット設定ファイルに`prompts`セクションを追加します：
 
 ```yaml
-# Classification prompts configuration (optional)
-# If not specified, default prompts will be used
+# 分類プロンプト設定（オプション）
+# 指定しない場合、デフォルトのプロンプトが使用されます
 prompts:
-  system_prompt: "Use semantic similarity to compare the candidate statistics with the retrieved samples and output the activity label that maximizes similarity; respond with only the class label from {classes} and nothing else."
+  system_prompt: "候補の統計情報と取得したサンプルをセマンティック類似性で比較し、類似性を最大化するアクティビティラベルを出力します。{classes}からクラスラベルのみを応答し、それ以外は何も出力しません。"
   user_prompt: |
-    You are given summary statistics for sensor data across temporal segments for labeled samples and one unlabeled candidate.
+    ラベル付きサンプルと1つのラベルなしの候補の時間的セグメントにわたるセンサーデータの要約統計が与えられます。
 
-    --- CANDIDATE ---
-    Time Series:
+    --- 候補 ---
+    時系列:
     {candidate_series}
 
-    --- LABELED SAMPLES ---
+    --- ラベル付きサンプル ---
     {retrieved_data}
 ```
 
-### How It Works
+### 動作仕組み
 
-1. The `PromptProvider` class (in `prompt_provider.py`) loads prompt templates from the dataset config
-2. During classification, prompts are dynamically generated using these templates
-3. This allows different datasets to use different classification strategies while maintaining the same codebase
+1. `PromptProvider`クラス（`prompt_provider.py`内）がデータセット設定からプロンプトテンプレートを読み込みます
+2. 分類中に、これらのテンプレートを使用してプロンプトが動的に生成されます
+3. これにより、同じコードベースを維持しながら、異なるデータセットが異なる分類戦略を使用できます
 
 ---
 
-## Adding a New Dataset
+## 新しいデータセットの追加
 
-To add support for a new HAR dataset, follow these steps:
+新しいHARデータセットのサポートを追加するには、以下の手順に従います：
 
-### 1. Create Dataset Configuration
+### 1. データセット設定の作成
 
-Create `datasets/my_dataset_config.yaml`:
+`datasets/my_dataset_config.yaml`を作成します：
 
 ```yaml
 dataset_name: "my_dataset"
@@ -371,11 +371,11 @@ features:
     - max
 ```
 
-### 2. Required File Structure
+### 2. 必要なファイル構造
 
-**IMPORTANT:** Your dataset provider MUST follow this standardized structure:
+**重要:** データセットプロバイダーは、この標準化された構造に従う必要があります：
 
-**Preprocessing Step Outputs:**
+**前処理ステップの出力:**
 
 ```
 output/{dataset_name}/train-test-splits/
@@ -392,12 +392,12 @@ output/{dataset_name}/train-test-splits/
     └── ...
 ```
 
-**Window CSV Naming:**
+**ウィンドウCSV命名:**
 
-- Standard pattern: `subject{idx}_window{idx}_activity{idx}_{activity_label}.csv`
-- Example: `subject101_window0000_activity1_walking.csv`
+- 標準パターン: `subject{idx}_window{idx}_activity{idx}_{activity_label}.csv`
+- 例: `subject101_window0000_activity1_walking.csv`
 
-**Feature Extraction Step Outputs:**
+**特徴抽出ステップの出力:**
 
 ```
 output/{dataset_name}/features/
@@ -411,24 +411,24 @@ output/{dataset_name}/features/
         └── ...
 ```
 
-**Feature File Naming:**
+**特徴ファイル命名:**
 
-- Pattern: `window_{idx}_activity_{activity_label}_stats.txt`
-- Example: `window_0_activity_walking_stats.txt`
+- パターン: `window_{idx}_activity_{activity_label}_stats.txt`
+- 例: `window_0_activity_walking_stats.txt`
 
-### 3. Create Dataset Provider
+### 3. データセットプロバイダーの作成
 
-Create `providers/my_dataset/provider.py` implementing:
+`providers/my_dataset/provider.py`を作成して実装します：
 
 ```python
 class MyDatasetProvider(DatasetProvider):
     def preprocess(self, output_dir: str) -> str:
-        # 1. Load your raw data
-        # 2. Apply preprocessing (normalization, filtering)
-        # 3. Create sliding windows
-        # 4. Save in standardized format:
+        # 1. 生データを読み込み
+        # 2. 前処理を適用（正規化、フィルタリング）
+        # 3. スライディングウィンドウを作成
+        # 4. 標準化された形式で保存:
         #    output/{dataset}/train-test-splits/{train|test}/{activity}/subject{idx}_window{idx}_activity{idx}_{activity_label}.csv
-        # 5. Return path to train-test-splits directory
+        # 5. train-test-splitsディレクトリのパスを返す
         pass
 
     def extract_features(self, windows_dir: str, output_dir: str) -> str:
@@ -437,24 +437,24 @@ class MyDatasetProvider(DatasetProvider):
         return extractor.extract_features(windows_dir, output_dir)
 ```
 
-### 4. Create Feature Extractor
+### 4. 特徴抽出器の作成
 
-Create `providers/my_dataset/features.py`:
+`providers/my_dataset/features.py`を作成します：
 
 ```python
 class MyDatasetFeatureExtractor:
     def extract_features(self, windows_dir: str, output_dir: str) -> str:
-        # 1. Search for windows: windows_path.rglob("subject*.csv") or windows_path.rglob("*.csv")
-        # 2. Parse filename to extract window_idx and activity_name
-        # 3. Extract features per window (temporal segments: whole, start, mid, end)
-        # 4. Generate descriptions
-        # 5. Save as: window_{idx}_activity_{name}_stats.txt
+        # 1. ウィンドウを検索: windows_path.rglob("subject*.csv") または windows_path.rglob("*.csv")
+        # 2. ファイル名を解析してwindow_idxとactivity_nameを抽出
+        # 3. ウィンドウごとの特徴を抽出（時間的セグメント：全体、開始、中間、終了）
+        # 4. 説明を生成
+        # 5. window_{idx}_activity_{name}_stats.txtとして保存
         pass
 ```
 
-### 5. Register Provider
+### 5. プロバイダーの登録
 
-Add to `dataset_provider.py`:
+`dataset_provider.py`に追加します：
 
 ```python
 provider_registry = {
@@ -462,7 +462,7 @@ provider_registry = {
 }
 ```
 
-### 6. Run Pipeline
+### 6. パイプラインの実行
 
 ```bash
 python preprocessing.py --config datasets/my_dataset_config.yaml
@@ -471,6 +471,6 @@ python timeseries_indexing.py --config datasets/my_dataset_config.yaml
 python classifier.py --config datasets/my_dataset_config.yaml
 ```
 
-**Reference implementations:** See `providers/pamap2/` for complete working examples
+**参考実装:** 完全に動作する例については`providers/pamap2/`を参照してください
 
 ---
