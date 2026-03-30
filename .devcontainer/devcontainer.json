@@ -1,0 +1,26 @@
+{
+    "name": "rag-har",
+    "dockerComposeFile": "../docker-compose.yml",
+    "service": "rag-har",
+    "workspaceFolder": "/app",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-toolsai.jupyter",
+                "ms-python.vscode-pylance"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "/usr/local/bin/python",
+                "python.linting.enabled": true,
+                "python.linting.pylintEnabled": true,
+                "jupyter.alwaysTrustNotebooks": true,
+                "jupyter.notebookFileRoot": "${workspaceFolder}",
+                "jupyter.jupyterServerType": "local",
+                "python.analysis.typeCheckingMode": "basic"
+            }
+        }
+    },
+    "forwardPorts": [8888],
+    "postCreateCommand": "python -m ipykernel install --user --name python3 --display-name 'Python 3'"
+}

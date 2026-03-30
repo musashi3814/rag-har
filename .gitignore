@@ -1,6 +1,7 @@
 .env
 venv1
 output
+data
 
 # Python bytecode
 __pycache__/
@@ -26,3 +27,10 @@ wheels/
 .installed.cfg
 *.egg
 .claude
+
+# Archive files
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z

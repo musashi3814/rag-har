@@ -21,3 +21,6 @@ pymilvus>=2.3.0
 
 # Utilities
 python-dotenv>=1.0.0
+
+# Jupyter
+jupyterlab>=4.0.0
