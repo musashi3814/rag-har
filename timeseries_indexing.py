@@ -272,62 +272,46 @@ class MultivariateTimeSeriesIndexer:
         else:
             logger.info(f"Collection {self.collection_name} already exists")
 
-    def embed_with_retry(self, text: str, max_retries: int = 3) -> List[float]:
-        """Embed a single text with retry logic for connection errors"""
+    def embed_batch(self, texts_batch, max_retries=3):
+        """Embed a batch of texts using the batch API with retry logic"""
+        str_batch = [str(t) for t in texts_batch]
         for attempt in range(max_retries):
             try:
-                return self.embed.embed_query(str(text))
+                return self.embed.embed_documents(str_batch)
             except Exception as e:
-                if attempt == max_retries - 1:  # Last attempt
+                if attempt == max_retries - 1:
                     raise e
-                time.sleep(60)  # Simple 60 second delay between retries
+                logger.warning(
+                    f"Embedding batch failed (attempt {attempt + 1}/{max_retries}): {e}"
+                )
+                time.sleep(60)
 
-    def embed_batch(self, texts_batch):
-        """Process a batch of texts to embed"""
-        results = []
-        for text in texts_batch:
-            results.append(self.embed_with_retry(text))
-        return results
-
-    def parallel_embed(self, texts_list, max_workers=10, batch_size=20):
-        """Embed a list of texts in parallel using concurrent.futures while maintaining order"""
+    def parallel_embed(self, texts_list, max_workers=3, batch_size=100):
+        """Embed a list of texts in parallel using batch embedding API"""
         batches = [
             texts_list[i : i + batch_size]
             for i in range(0, len(texts_list), batch_size)
         ]
-        results = [None] * len(batches)  # Pre-allocate results array to maintain order
+        results = [None] * len(batches)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all batches and store future-to-index mapping
             future_to_index = {
                 executor.submit(self.embed_batch, batch): i
                 for i, batch in enumerate(batches)
             }
 
-            # Process results while maintaining order
             for future in tqdm(
                 concurrent.futures.as_completed(future_to_index),
                 total=len(batches),
                 desc="Embedding batches",
             ):
                 batch_index = future_to_index[future]
-                try:
-                    batch_results = future.result()
-                    results[batch_index] = batch_results  # Store in correct position
-                except Exception as e:
-                    logger.error(f"Error processing batch {batch_index}: {e}")
-                    # Add None results to maintain order
-                    results[batch_index] = [None] * len(batches[batch_index])
+                results[batch_index] = future.result()
 
-        # Flatten results while maintaining order
-        flattened_results = []
-        for batch_result in results:
-            if batch_result is not None:
-                flattened_results.extend(batch_result)
-            else:
-                flattened_results.extend([None] * batch_size)  # Maintain length
-
-        return flattened_results
+        flattened = []
+        for r in results:
+            flattened.extend(r)
+        return flattened
 
     def extract_sensor_sections(self, text):
         """
@@ -407,18 +391,10 @@ class MultivariateTimeSeriesIndexer:
 
         # Process embeddings in parallel
         logger.info(f"Creating embeddings for {len(metadata_list)} time series...")
-        stats_embedded_values = self.parallel_embed(
-            stats_to_embed, max_workers=10, batch_size=20
-        )
-        start_stats_embedded_values = self.parallel_embed(
-            start_stats_to_embed, max_workers=10, batch_size=20
-        )
-        mid_stats_embedded_values = self.parallel_embed(
-            mid_stats_to_embed, max_workers=10, batch_size=20
-        )
-        end_stats_embedded_values = self.parallel_embed(
-            end_stats_to_embed, max_workers=10, batch_size=20
-        )
+        stats_embedded_values = self.parallel_embed(stats_to_embed)
+        start_stats_embedded_values = self.parallel_embed(start_stats_to_embed)
+        mid_stats_embedded_values = self.parallel_embed(mid_stats_to_embed)
+        end_stats_embedded_values = self.parallel_embed(end_stats_to_embed)
 
         # Create the final data list with proper metadata-embedding association
         self.multivariate_data_list = []

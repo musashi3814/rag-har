@@ -6,7 +6,7 @@ description: "PAMAP2 Physical Activity Monitoring - Multi-sensor IMU data from h
 
 # Data source configuration
 data_source:
-  folder_path: "/Users/hansi/Downloads/PAMAP2_Dataset/Protocol" # Directory containing subject*.dat files
+  folder_path: "/app/data/PAMAP2_Dataset/Protocol" # Directory containing subject*.dat files
   # Activity labels
   activities:
     - lying
