@@ -2,6 +2,7 @@
 venv1
 output
 data
+.omc
 
 # Python bytecode
 __pycache__/

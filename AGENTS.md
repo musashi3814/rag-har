@@ -139,8 +139,7 @@ docker compose exec rag-har python classifier.py --config datasets/pamap2_config
 | 変数名 | 用途 |
 |--------|------|
 | `OPENAI_API_KEY` | OpenAI APIキー（埋め込み・LLM分類に使用） |
-| `ZILLIZ_CLOUD_URI` | Zilliz Cloud クラスタURI |
-| `ZILLIZ_CLOUD_API_KEY` | Zilliz Cloud APIキー |
+| `MILVUS_URI` | ローカルMilvus接続URI（デフォルト: `http://milvus:19530`） |
 
 
 ## コーディング規約

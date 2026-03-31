@@ -9,12 +9,12 @@ import logging
 
 import pandas as pd
 from tqdm import tqdm
-from langchain_openai import OpenAIEmbeddings
 from pymilvus import MilvusClient, DataType
 from dotenv import load_dotenv
 from langchain_core.documents import Document
 
 from dataset_provider import get_provider
+from embedding_provider import get_embedding_provider
 
 GRPC_TARGET = 38 * 1024 * 1024  # stay under ~48 MiB per RPC
 MAX_ROWS = 500  # secondary guard
@@ -159,7 +159,7 @@ def _estimate_row_bytes(row: dict) -> int:
 
 
 class MultivariateTimeSeriesIndexer:
-    def __init__(self, dataset_name, base_dir=None):
+    def __init__(self, dataset_name, base_dir=None, config=None):
         self.dataset_name = dataset_name
         self.collection_name = f"{dataset_name}_collection"
         self.output_dir = f"output/{dataset_name}/documents"
@@ -167,18 +167,14 @@ class MultivariateTimeSeriesIndexer:
         self.base_dir = base_dir
 
         # Initialize embedding model and Milvus client
-        self.embed = OpenAIEmbeddings(
-            model="text-embedding-3-small", api_key=os.environ.get("OPENAI_API_KEY")
-        )
+        embedding_cfg = (config or {}).get("embedding", {})
+        self.embed = get_embedding_provider(config or {})
+        self.max_workers = embedding_cfg.get("max_workers", 1)
+        self.batch_size = embedding_cfg.get("batch_size", 5)
         self.milvus_client = MilvusClient(
-            uri=os.environ.get("ZILLIZ_CLOUD_URI"),
-            token=os.environ.get("ZILLIZ_CLOUD_API_KEY"),
-            grpc_channel_options=[
-                ("grpc.max_send_message_length", 128 * 1024 * 1024),
-                ("grpc.max_receive_message_length", 128 * 1024 * 1024),
-            ],
+            uri=os.environ.get("MILVUS_URI", "http://milvus:19530"),
         )
-        logger.info("Milvus client initialized.")
+        logger.info(f"Milvus client initialized. Embedding dim={self.embed.dimension}, max_workers={self.max_workers}, batch_size={self.batch_size}")
 
         # Data storage
         self.multivariate_data_list = []
@@ -219,25 +215,26 @@ class MultivariateTimeSeriesIndexer:
             schema.add_field(
                 field_name="stats_end_text", datatype=DataType.VARCHAR, max_length=10000
             )
+            dim = self.embed.dimension
             schema.add_field(
                 field_name="activity_stats_emb",
                 datatype=DataType.FLOAT_VECTOR,
-                dim=1536,
+                dim=dim,
             )
             schema.add_field(
                 field_name="activity_stats_start_emb",
                 datatype=DataType.FLOAT_VECTOR,
-                dim=1536,
+                dim=dim,
             )
             schema.add_field(
                 field_name="activity_stats_mid_emb",
                 datatype=DataType.FLOAT_VECTOR,
-                dim=1536,
+                dim=dim,
             )
             schema.add_field(
                 field_name="activity_stats_end_emb",
                 datatype=DataType.FLOAT_VECTOR,
-                dim=1536,
+                dim=dim,
             )
 
             index_params = self.milvus_client.prepare_index_params()
@@ -286,7 +283,7 @@ class MultivariateTimeSeriesIndexer:
                 )
                 time.sleep(60)
 
-    def parallel_embed(self, texts_list, max_workers=1, batch_size=50):
+    def parallel_embed(self, texts_list, max_workers=1, batch_size=5):
         """Embed a list of texts in parallel using batch embedding API"""
         batches = [
             texts_list[i : i + batch_size]
@@ -391,10 +388,10 @@ class MultivariateTimeSeriesIndexer:
 
         # Process embeddings in parallel
         logger.info(f"Creating embeddings for {len(metadata_list)} time series...")
-        stats_embedded_values = self.parallel_embed(stats_to_embed)
-        start_stats_embedded_values = self.parallel_embed(start_stats_to_embed)
-        mid_stats_embedded_values = self.parallel_embed(mid_stats_to_embed)
-        end_stats_embedded_values = self.parallel_embed(end_stats_to_embed)
+        stats_embedded_values = self.parallel_embed(stats_to_embed, self.max_workers, self.batch_size)
+        start_stats_embedded_values = self.parallel_embed(start_stats_to_embed, self.max_workers, self.batch_size)
+        mid_stats_embedded_values = self.parallel_embed(mid_stats_to_embed, self.max_workers, self.batch_size)
+        end_stats_embedded_values = self.parallel_embed(end_stats_to_embed, self.max_workers, self.batch_size)
 
         # Create the final data list with proper metadata-embedding association
         self.multivariate_data_list = []
@@ -626,6 +623,7 @@ def main():
     indexer = MultivariateTimeSeriesIndexer(
         dataset_name=dataset_name,
         base_dir=descriptions_dir,
+        config=provider.config,
     )
 
     # Process and index

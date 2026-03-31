@@ -20,11 +20,7 @@
 
 このパイプラインは、ベクトルストレージと類似性検索のためにMilvusを使用します。
 
-**無料クラウドインスタンスの取得方法:**
-
-1. [Zilliz Cloud](https://cloud.zilliz.com/signup) にサインアップ
-2. 新しいクラスタを作成（無料枠あり）
-3. クラスタ詳細ページから認証情報を取得
+**Milvusはdocker-composeで自動起動するため、別途セットアップは不要です。**
 
 ---
 
@@ -75,8 +71,6 @@ pip install -r requirements.txt
 
 ```bash
 export OPENAI_API_KEY="sk-your-key-here"
-export ZILLIZ_CLOUD_URI="https://your-cluster.api.gcp-us-west1.zillizcloud.com"
-export ZILLIZ_CLOUD_API_KEY="your-token-here"
 ```
 
 ### 3. データセットのダウンロード
@@ -229,7 +223,7 @@ python timeseries_indexing.py --config datasets/pamap2_config.yaml
 
 **出力:**
 
-- **Milvus:** クラウドストレージ
+- **Milvus:** ローカルベクトルDB内
 
 **処理内容:**
 
@@ -289,8 +283,6 @@ python classifier.py --config datasets/pamap2_config.yaml
 ```bash
 # 必要な環境変数を設定
 export OPENAI_API_KEY="your-api-key-here"
-export ZILLIZ_CLOUD_URI="your-milvus-uri"
-export ZILLIZ_CLOUD_API_KEY="your-milvus-api-key"
 
 # ステップ1: 前処理（データセット固有）
 python preprocessing_new.py --config datasets/pamap2_config.yaml

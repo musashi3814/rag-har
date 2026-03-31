@@ -51,6 +51,13 @@ features:
     - peak_to_peak
     - dominant_freq
 
+# Embedding configuration
+embedding:
+  provider: "openai"
+  model: "text-embedding-3-small"
+  max_workers: 1           # parallel embed workers
+  batch_size: 5            # texts per embed batch
+
 # LLM configuration
 llm:
   provider: "openai"

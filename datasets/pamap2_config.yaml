@@ -49,6 +49,14 @@ features:
     - p75
     - peaks
 
+# Embedding configuration
+embedding:
+  provider: "local"       # "openai" | "local"
+  model: "BAAI/bge-m3"  # local: "BAAI/bge-m3" etc.
+  device: "cuda"           # "cpu" | "cuda" — vLLMとGPU共有の場合はcpu推奨
+  max_workers: 1           # parallel embed workers
+  batch_size: 5            # texts per embed batch
+
 # LLM configuration
 llm:
   provider: "local"        # "openai" | "local"

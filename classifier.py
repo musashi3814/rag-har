@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Dict, List
 
 import pandas as pd
-from langchain_openai import OpenAIEmbeddings
 from pymilvus import MilvusClient, WeightedRanker, AnnSearchRequest
 from sklearn.metrics import accuracy_score, f1_score
 from dotenv import load_dotenv
@@ -25,6 +24,7 @@ from tqdm import tqdm
 from dataset_provider import get_provider
 from prompt_provider import get_prompt_provider
 from llm_client import get_llm_client
+from embedding_provider import get_embedding_provider
 
 load_dotenv()
 
@@ -98,25 +98,12 @@ class RAGActivityClassifier:
         llm_config = self.config.get("llm", {})
         self.model = llm_config.get("model")
 
-        # Initialize embeddings (always OpenAI)
-        self.openai_api_key = os.environ.get("OPENAI_API_KEY")
-        if not self.openai_api_key:
-            raise ValueError("OPENAI_API_KEY environment variable not set")
-
-        self.embeddings = OpenAIEmbeddings(
-            api_key=self.openai_api_key, model="text-embedding-3-small"
-        )
+        # Initialize embeddings
+        self.embeddings = get_embedding_provider(self.config)
 
         # Initialize Milvus
-        milvus_uri = os.environ.get("ZILLIZ_CLOUD_URI")
-        milvus_token = os.environ.get("ZILLIZ_CLOUD_API_KEY")
-
-        if not milvus_uri or not milvus_token:
-            raise ValueError(
-                "ZILLIZ_CLOUD_URI and ZILLIZ_CLOUD_API_KEY environment variables must be set"
-            )
-
-        self.milvus_client = MilvusClient(uri=milvus_uri, token=milvus_token)
+        milvus_uri = os.environ.get("MILVUS_URI", "http://milvus:19530")
+        self.milvus_client = MilvusClient(uri=milvus_uri)
         self.collection_name = f"{self.dataset_name}_collection"
 
         # Get valid activity labels from config
