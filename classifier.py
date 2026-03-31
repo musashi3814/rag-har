@@ -18,26 +18,18 @@ from typing import Dict, List
 import pandas as pd
 from langchain_openai import OpenAIEmbeddings
 from pymilvus import MilvusClient, WeightedRanker, AnnSearchRequest
-from openai import OpenAI
-from pydantic import BaseModel
 from sklearn.metrics import accuracy_score, f1_score
 from dotenv import load_dotenv
-import openai
 from tqdm import tqdm
 
 from dataset_provider import get_provider
 from prompt_provider import get_prompt_provider
+from llm_client import get_llm_client
 
 load_dotenv()
 
 # Suppress httpx logs
 logging.getLogger("httpx").setLevel(logging.WARNING)
-
-
-class ActivityPrediction(BaseModel):
-    """Structured output for activity classification."""
-
-    activity_label: str
 
 
 def extract_sensor_sections(text: str) -> Dict[str, str]:
@@ -77,7 +69,7 @@ class RAGActivityClassifier:
     def __init__(
         self,
         provider,
-        model: str = "gpt-5-mini",
+        model: str = None,
         fewshot: int = 30,
         out_fewshot: int = 20,
     ):
@@ -86,21 +78,27 @@ class RAGActivityClassifier:
 
         Args:
             provider: DatasetProvider instance
-            model: LLM model name for classification
+            model: LLM model name for classification (overrides config)
             fewshot: Number of samples to retrieve per segment
             out_fewshot: Final number of samples after reranking
         """
         self.provider = provider
         self.config = provider.config
         self.dataset_name = provider.dataset_name
-        self.model = model
         self.fewshot = fewshot
         self.out_fewshot = out_fewshot
 
         # Initialize prompt provider
         self.prompt_provider = get_prompt_provider(self.config)
 
-        # Initialize OpenAI
+        # Initialize LLM client (OpenAI or local)
+        if model:
+            self.config.setdefault("llm", {})["model"] = model
+        self.llm_client = get_llm_client(self.config)
+        llm_config = self.config.get("llm", {})
+        self.model = llm_config.get("model")
+
+        # Initialize embeddings (always OpenAI)
         self.openai_api_key = os.environ.get("OPENAI_API_KEY")
         if not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY environment variable not set")
@@ -108,7 +106,6 @@ class RAGActivityClassifier:
         self.embeddings = OpenAIEmbeddings(
             api_key=self.openai_api_key, model="text-embedding-3-small"
         )
-        self.openai_client = OpenAI(api_key=self.openai_api_key)
 
         # Initialize Milvus
         milvus_uri = os.environ.get("ZILLIZ_CLOUD_URI")
@@ -128,6 +125,7 @@ class RAGActivityClassifier:
         print(f"Initialized RAG Classifier for dataset: {self.dataset_name}")
         print(f"Collection: {self.collection_name}")
         print(f"Valid labels: {self.valid_labels}")
+        print(f"LLM Provider: {llm_config.get('provider', 'openai')}")
         print(f"LLM Model: {self.model}")
         print(
             f"Retrieval: {self.fewshot} per segment → {self.out_fewshot} final samples"
@@ -213,7 +211,7 @@ class RAGActivityClassifier:
                 ],
                 reqs=[req_1, req_2, req_3, req_4],
                 limit=self.out_fewshot,
-                ranker=WeightedRanker(0.25, 0.25, 0.25, 0.25),
+                ranker=WeightedRanker(0.4, 0.2, 0.2, 0.2),
             )
             print(f"DEBUG: Hybrid search completed for window {window_id}")
         except Exception as e:
@@ -276,40 +274,14 @@ class RAGActivityClassifier:
         system_prompt = self.prompt_provider.get_system_prompt(self.valid_labels)
         user_prompt = self.prompt_provider.get_user_prompt(series, retrieved_data)
 
-        # Call LLM with retry logic
+        # Call LLM
         print(f"DEBUG: Calling LLM (model={self.model}) for window {window_id}...")
-        success = False
-        retry_count = 0
-        max_retries = 3
-        while not success and retry_count < max_retries:
-            try:
-                response = self.openai_client.beta.chat.completions.parse(
-                    model=self.model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    response_format=ActivityPrediction,
-                    timeout=60.0,  # 60 second timeout
-                )
-                prediction = response.choices[0].message.parsed.activity_label
-                success = True
-                print(f"DEBUG: LLM prediction for window {window_id}: {prediction}")
-            except openai.RateLimitError as e:
-                print(f"Rate limit reached: {e}. Waiting 65 seconds...")
-                time.sleep(65)
-                retry_count += 1
-            except Exception as e:
-                print(
-                    f"ERROR: OpenAI API error (retry {retry_count+1}/{max_retries}): {type(e).__name__}: {e}"
-                )
-                retry_count += 1
-                if retry_count < max_retries:
-                    print(f"Waiting 10 seconds before retry...")
-                    time.sleep(10)
-                else:
-                    print(f"Max retries reached. Skipping window {window_id}")
-                    raise
+        prediction = self.llm_client.classify(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            valid_labels=self.valid_labels,
+        )
+        print(f"DEBUG: LLM prediction for window {window_id}: {prediction}")
 
         # Display results for this sample
         retrieved_labels_display = [str(label) for label in retrieved_labels]
@@ -418,8 +390,8 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="gpt-5-mini",
-        help="LLM model for classification (default: gpt-5-mini)",
+        default=None,
+        help="LLM model for classification (overrides config yaml llm.model)",
     )
     parser.add_argument(
         "--fewshot",

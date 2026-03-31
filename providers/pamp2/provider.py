@@ -200,9 +200,19 @@ class PAMAP2Provider(DatasetProvider):
             original_len = len(data_selected)
             data_clean = data_selected.dropna()
 
-            subjects_clean[subject_id] = data_clean
-            logger.info(f"  Subject {subject_id}: {len(data_clean)} samples "
-                       f"(removed {original_len - len(data_clean)} NaN rows)")
+            # Z-score normalization on sensor channels (per subject, per channel)
+            sensor_cols = [c for c in data_clean.columns if c not in ('timestamp', 'activity_id')]
+            data_normalized = data_clean.copy()
+            for col in sensor_cols:
+                col_std = data_clean[col].std()
+                if col_std > 1e-8:
+                    data_normalized[col] = (data_clean[col] - data_clean[col].mean()) / col_std
+                else:
+                    data_normalized[col] = 0.0
+
+            subjects_clean[subject_id] = data_normalized
+            logger.info(f"  Subject {subject_id}: {len(data_normalized)} samples "
+                       f"(removed {original_len - len(data_normalized)} NaN rows, Z-score normalized)")
 
         # Step 3: Create sliding windows
         logger.info("Step 3: Creating sliding windows...")

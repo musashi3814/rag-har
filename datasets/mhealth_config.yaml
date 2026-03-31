@@ -41,6 +41,11 @@ features:
     - p25
     - p75
 
+# LLM configuration
+llm:
+  provider: "openai"
+  model: "gpt-5-mini"
+
 # Classification prompts configuration
 prompts:
   system_prompt: |

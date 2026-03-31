@@ -15,6 +15,26 @@ services:
     working_dir: /app
     tty: true
     stdin_open: true
+    ipc: host
+    shm_size: '16gb'
+    depends_on:
+      - vllm
+
+  vllm:
+    image: vllm/vllm-openai:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    environment:
+      - MODEL_NAME=${VLLM_MODEL:-gpt-oss-20b}
+    command: >
+      --model ${VLLM_MODEL:-openai/gpt-oss-20b}
+      --host 0.0.0.0
+      --port 8000
+      --dtype bfloat16
+      --gpu-memory-utilization 0.9
+      --max-model-len 98304
     deploy:
       resources:
         reservations:

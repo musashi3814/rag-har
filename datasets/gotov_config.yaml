@@ -51,6 +51,11 @@ features:
     - peak_to_peak
     - dominant_freq
 
+# LLM configuration
+llm:
+  provider: "openai"
+  model: "gpt-5-mini"
+
 # Classification prompts configuration
 prompts:
   system_prompt: "Use semantic similarity to compare the candidate statistics with the retrieved samples and output the activity label that maximizes similarity; respond with only the class label from {classes} and nothing else."

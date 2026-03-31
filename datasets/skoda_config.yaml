@@ -36,6 +36,11 @@ features:
     - p25
     - p75
 
+# LLM configuration
+llm:
+  provider: "openai"
+  model: "gpt-5-mini"
+
 # Classification prompts configuration
 prompts:
   task_description: "activity recognition from the Skoda dataset using IMU sensor data summarized as statistics across different temporal segments."

@@ -175,7 +175,7 @@ class PAMAP2FeatureExtractor:
         }
 
         axes = ['x', 'y', 'z']
-        stat_names = ['mean', 'std', 'min', 'max', 'median', 'p25', 'p75']
+        stat_names = ['mean', 'std', 'min', 'max', 'median', 'p25', 'p75', 'peaks']
 
         # Process each sensor type
         for sensor_type in self.sensor_types:
@@ -195,7 +195,7 @@ class PAMAP2FeatureExtractor:
                 # Compute statistics
                 stats = self.feature_utils.compute_stats(
                     data,
-                    self.feature_config.get('statistics', ['mean', 'std', 'min', 'max', 'median', 'p25', 'p75'])
+                    self.feature_config.get('statistics', ['mean', 'std', 'min', 'max', 'median', 'p25', 'p75', 'peaks'])
                 )
 
                 # Format: Acceleration (axis 1, m/s²): mean=..., std=..., ...

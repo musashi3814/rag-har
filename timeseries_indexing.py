@@ -286,7 +286,7 @@ class MultivariateTimeSeriesIndexer:
                 )
                 time.sleep(60)
 
-    def parallel_embed(self, texts_list, max_workers=3, batch_size=100):
+    def parallel_embed(self, texts_list, max_workers=1, batch_size=50):
         """Embed a list of texts in parallel using batch embedding API"""
         batches = [
             texts_list[i : i + batch_size]

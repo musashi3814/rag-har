@@ -24,8 +24,8 @@ data_source:
 
 # Preprocessing configuration
 preprocessing:
-  window_size: 500 # Window size in samples (5 seconds at 100Hz)
-  step_size: 500 # Step size in samples (5 seconds for no overlap)
+  window_size: 200 # Window size in samples (2 seconds at 100Hz) - matches paper §V-A2
+  step_size: 50 # Step size in samples (0.5 seconds, 75% overlap) - matches paper §V-A2
   sampling_rate: 100 # Sampling rate in Hz
 
 # Train/Test split configuration
@@ -47,6 +47,14 @@ features:
     - median
     - p25
     - p75
+    - peaks
+
+# LLM configuration
+llm:
+  provider: "local"        # "openai" | "local"
+  model: "openai/gpt-oss-20b"
+  base_url: http://vllm:8000/v1          # Docker Compose: use service name. For local run: http://localhost:8000/v1
+  # api_key: null           # Override for local provider
 
 # Classification prompts configuration
 prompts:

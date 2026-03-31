@@ -85,6 +85,14 @@ class FeatureExtractorUtils:
                 stats_dict["energy"] = np.sum(x_arr**2)
             elif stat_name == "zero_crossings":
                 stats_dict["zero_crossings"] = np.sum(np.diff(np.sign(x_arr)) != 0)
+            elif stat_name == "peaks":
+                # Count number of local peaks (local maxima)
+                if len(x_arr) < 3:
+                    stats_dict["peaks"] = 0
+                else:
+                    stats_dict["peaks"] = int(np.sum(
+                        (x_arr[1:-1] > x_arr[:-2]) & (x_arr[1:-1] > x_arr[2:])
+                    ))
             else:
                 stats_dict[stat_name] = 0.0
 
