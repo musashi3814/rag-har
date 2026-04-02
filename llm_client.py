@@ -89,8 +89,9 @@ class OpenAIClient:
 class LocalLLMClient:
     """Local LLM client via OpenAI-compatible endpoint (vLLM, Ollama, etc.)."""
 
-    def __init__(self, model: str, base_url: str, api_key: Optional[str] = None):
+    def __init__(self, model: str, base_url: str, api_key: Optional[str] = None, max_tokens: int = 64):
         self.model = model
+        self.max_tokens = max_tokens
         # Most OpenAI-compatible servers accept any API key
         self.client = OpenAI(
             base_url=base_url,
@@ -113,9 +114,13 @@ class LocalLLMClient:
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=0.0,
-                    timeout=120.0,
+                    max_tokens=self.max_tokens,
+                    timeout=180.0,
                 )
-                raw = response.choices[0].message.content.strip()
+                content = response.choices[0].message.content
+                if not content:
+                    raise ValueError("LLM returned empty content")
+                raw = content.strip()
                 return self._extract_label(raw, valid_labels)
             except Exception as e:
                 logger.warning(
@@ -167,8 +172,9 @@ def get_llm_client(config: dict) -> LLMClient:
         if not base_url:
             raise ValueError("llm.base_url is required for local provider")
         api_key = llm_config.get("api_key")
+        max_tokens = llm_config.get("max_tokens", 64)
         logger.info(f"Using local LLM: {model} at {base_url}")
-        return LocalLLMClient(model=model, base_url=base_url, api_key=api_key)
+        return LocalLLMClient(model=model, base_url=base_url, api_key=api_key, max_tokens=max_tokens)
 
     # Default: OpenAI
     api_key = llm_config.get("api_key") or os.environ.get("OPENAI_API_KEY")

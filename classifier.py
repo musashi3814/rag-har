@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Dict, List
 
 import pandas as pd
+import tiktoken
 from pymilvus import MilvusClient, WeightedRanker, AnnSearchRequest
 from sklearn.metrics import accuracy_score, f1_score
 from dotenv import load_dotenv
@@ -27,6 +28,13 @@ from llm_client import get_llm_client
 from embedding_provider import get_embedding_provider
 
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 # Suppress httpx logs
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -117,6 +125,54 @@ class RAGActivityClassifier:
         print(
             f"Retrieval: {self.fewshot} per segment → {self.out_fewshot} final samples"
         )
+
+    _tiktoken_enc = None
+
+    @classmethod
+    def _count_tokens(cls, text: str) -> int:
+        """Count tokens accurately using tiktoken (cl100k_base)."""
+        if cls._tiktoken_enc is None:
+            cls._tiktoken_enc = tiktoken.get_encoding("cl100k_base")
+        return len(cls._tiktoken_enc.encode(text))
+
+    def _truncate_sections(
+        self,
+        system_prompt: str,
+        candidate_series: str,
+        sections: List[str],
+    ) -> List[str]:
+        """
+        Drop sections from the tail until total prompt fits in context.
+        Accounts for tiktoken-vs-Qwen tokenizer mismatch (observed ~1.2x).
+        """
+        llm_cfg = self.config.get("llm", {})
+        max_context = llm_cfg.get("max_context_tokens", 74440)
+        max_output = llm_cfg.get("max_tokens", 64)
+        # Qwen tokenizer produces ~23% more tokens than cl100k_base (measured)
+        tokenizer_ratio = 1.3
+        # Chat template adds special tokens
+        chat_overhead = 200
+
+        # Compute tiktoken budget so that actual Qwen tokens stay under limit
+        # actual ≈ tiktoken * tokenizer_ratio
+        # So: tiktoken_budget = (max_context - max_output - chat_overhead) / tokenizer_ratio
+        tiktoken_limit = (max_context - max_output - chat_overhead) / tokenizer_ratio
+
+        fixed = self._count_tokens(system_prompt) + self._count_tokens(candidate_series)
+        budget = int(tiktoken_limit - fixed)
+
+        kept = []
+        used = 0
+        for section in sections:
+            sec_tokens = self._count_tokens(section) + 2
+            if used + sec_tokens > budget:
+                break
+            kept.append(section)
+            used += sec_tokens
+
+        print(f"  [TRUNCATE] tiktoken budget={budget}, used={used}, "
+              f"kept={len(kept)}/{len(sections)}")
+        return kept
 
     def classify_window(self, window_file: str) -> Dict:
         """
@@ -246,9 +302,6 @@ class RAGActivityClassifier:
         # Check if true label appears in retrieved samples (RAG quality metric)
         rag_hit = true_label in retrieved_labels
 
-        # Construct prompts using prompt provider
-        retrieved_data = "\n\n".join(sections)
-
         # Format candidate series
         series = (
             f"[Whole Segment]:\n{whole_stats}\n"
@@ -257,12 +310,18 @@ class RAGActivityClassifier:
             f"[End Segment]:\n{end_stats}\n"
         )
 
-        # Generate system and user prompts
+        # Generate system prompt (needed for truncation budget calc)
         system_prompt = self.prompt_provider.get_system_prompt(self.valid_labels)
+
+        # Truncate retrieved sections to fit within context window
+        sections = self._truncate_sections(system_prompt, series, sections)
+
+        # Construct prompts using prompt provider
+        retrieved_data = "\n\n".join(sections)
         user_prompt = self.prompt_provider.get_user_prompt(series, retrieved_data)
 
         # Call LLM
-        print(f"DEBUG: Calling LLM (model={self.model}) for window {window_id}...")
+        print(f"DEBUG: Calling LLM for window {window_id}...")
         prediction = self.llm_client.classify(
             system_prompt=system_prompt,
             user_prompt=user_prompt,

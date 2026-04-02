@@ -19,6 +19,9 @@ langchain-openai>=0.0.5
 # Vector Database
 pymilvus>=2.3.0
 
+# Token counting
+tiktoken>=0.7.0
+
 # Utilities
 python-dotenv>=1.0.0
 

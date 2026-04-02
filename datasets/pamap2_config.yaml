@@ -53,15 +53,17 @@ features:
 embedding:
   provider: "local"       # "openai" | "local"
   model: "BAAI/bge-m3"  # local: "BAAI/bge-m3" etc.
-  device: "cuda"           # "cpu" | "cuda" — vLLMとGPU共有の場合はcpu推奨
+  device: "cpu"            # "cpu" | "cuda" — vLLMとGPU共有の場合はcpu推奨
   max_workers: 1           # parallel embed workers
   batch_size: 5            # texts per embed batch
 
 # LLM configuration
 llm:
   provider: "local"        # "openai" | "local"
-  model: "openai/gpt-oss-20b"
+  model: "Qwen/Qwen3.5-9B"
   base_url: http://vllm:8000/v1          # Docker Compose: use service name. For local run: http://localhost:8000/v1
+  max_tokens: 64                         # Output tokens (activity label only)
+  max_context_tokens: 74440              # Must match vLLM --max-model-len
   # api_key: null           # Override for local provider
 
 # Classification prompts configuration
